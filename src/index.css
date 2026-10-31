@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Custom smooth scroll and touch behavior */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide scrollbars for touch-friendly horizontal tab navigation */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glassmorphism helpers */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Mobile Safe Area Insets for iPhone and modern Android devices */
+.pb-safe {
+  padding-bottom: max(1.25rem, calc(1rem + env(safe-area-inset-bottom)));
+}
+.mb-safe {
+  margin-bottom: max(1.25rem, calc(1rem + env(safe-area-inset-bottom)));
+}
+
+/* Better touch handling */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}

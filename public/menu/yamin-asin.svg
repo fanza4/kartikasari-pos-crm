@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <radialGradient id="yaminAsinGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FEF9C3" />
+      <stop offset="70%" stop-color="#FDE047" />
+      <stop offset="100%" stop-color="#EAB308" />
+    </radialGradient>
+    <linearGradient id="bowlGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect width="200" height="200" rx="24" fill="#F0FDF4"/>
+  <!-- Bowl Base -->
+  <ellipse cx="100" cy="165" rx="45" ry="8" fill="#CBD5E1"/>
+  <!-- Bowl Body -->
+  <path d="M 35,95 C 38,155 70,165 100,165 C 130,165 162,155 165,95 Z" fill="url(#bowlGrad3)" stroke="#15803D" stroke-width="3.5"/>
+  <!-- Rim -->
+  <ellipse cx="100" cy="95" rx="65" ry="24" fill="url(#yaminAsinGrad)" stroke="#15803D" stroke-width="2"/>
+  <!-- Golden Savory Noodles -->
+  <path d="M 52,94 Q 78,110 105,92 Q 132,110 148,94" stroke="#CA8A04" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M 58,102 Q 82,116 108,100 Q 134,114 142,102" stroke="#EAB308" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M 64,88 Q 88,104 112,90 Q 136,104 142,88" stroke="#FDE047" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Meatballs -->
+  <!-- Big Baso Urat -->
+  <circle cx="100" cy="84" r="18" fill="#9A3412" stroke="#78350F" stroke-width="2"/>
+  <circle cx="97" cy="80" r="3" fill="#FED7AA" opacity="0.6"/>
+  <!-- Small Baso 1 -->
+  <circle cx="68" cy="82" r="11" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <!-- Small Baso 2 -->
+  <circle cx="132" cy="82" r="11" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <!-- Small Baso 3 -->
+  <circle cx="120" cy="98" r="9" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <!-- Minced Chicken / Tongcai & Scallions -->
+  <rect x="75" y="96" width="6" height="4" rx="1" fill="#16A34A"/>
+  <rect x="88" y="102" width="6" height="4" rx="1" fill="#15803D"/>
+  <rect x="105" y="99" width="6" height="4" rx="1" fill="#22C55E"/>
+  <ellipse cx="94" cy="94" rx="2.5" ry="1.5" fill="#B45309"/>
+</svg>

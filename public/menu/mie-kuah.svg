@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <radialGradient id="soupGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="70%" stop-color="#FACC15" />
+      <stop offset="100%" stop-color="#CA8A04" />
+    </radialGradient>
+    <linearGradient id="bowlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect width="200" height="200" rx="24" fill="#F0FDF4"/>
+  <!-- Steam Curves -->
+  <path d="M 75,55 Q 70,40 75,28" stroke="#166534" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M 100,50 Q 95,35 100,22" stroke="#166534" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M 125,55 Q 120,40 125,28" stroke="#166534" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <!-- Bowl Base -->
+  <ellipse cx="100" cy="165" rx="45" ry="8" fill="#CBD5E1"/>
+  <!-- Bowl Body -->
+  <path d="M 35,95 C 38,155 70,165 100,165 C 130,165 162,155 165,95 Z" fill="url(#bowlGrad)" stroke="#166534" stroke-width="3.5"/>
+  <!-- Soup Rim -->
+  <ellipse cx="100" cy="95" rx="65" ry="24" fill="url(#soupGrad)" stroke="#166534" stroke-width="2"/>
+  <!-- Noodles Strands -->
+  <path d="M 55,95 Q 80,110 105,92 Q 130,110 145,95" stroke="#EAB308" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M 60,102 Q 85,115 110,100 Q 135,112 140,102" stroke="#FEF08A" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <!-- Meatballs (Bakso) -->
+  <!-- Big Baso Urat -->
+  <circle cx="95" cy="88" r="19" fill="#9A3412" stroke="#78350F" stroke-width="2"/>
+  <circle cx="92" cy="84" r="3" fill="#FED7AA" opacity="0.5"/>
+  <!-- Small Baso 1 -->
+  <circle cx="68" cy="86" r="12" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <!-- Small Baso 2 -->
+  <circle cx="128" cy="85" r="12" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <!-- Small Baso 3 -->
+  <circle cx="112" cy="100" r="10" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <!-- Greens / Scallions -->
+  <rect x="74" y="98" width="6" height="4" rx="1" fill="#15803D"/>
+  <rect x="85" y="104" width="6" height="4" rx="1" fill="#16A34A"/>
+  <rect x="122" y="96" width="6" height="4" rx="1" fill="#22C55E"/>
+</svg>

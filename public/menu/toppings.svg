@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <!-- Background Badge -->
+  <rect width="200" height="200" rx="24" fill="#FEF2F2"/>
+  <!-- Plate Base -->
+  <ellipse cx="100" cy="155" rx="75" ry="22" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2"/>
+  <ellipse cx="100" cy="150" rx="65" ry="18" fill="#F8FAFC"/>
+  <!-- Topping 1: Siomay (Top-Left) -->
+  <path d="M 50,110 Q 65,95 80,110 L 76,132 Q 65,138 54,132 Z" fill="#FDE047" stroke="#CA8A04" stroke-width="2"/>
+  <circle cx="65" cy="112" r="4" fill="#EA580C"/>
+  <!-- Topping 2: Tahu Bakso (Top-Right) -->
+  <polygon points="120,105 145,100 155,125 130,130" fill="#D97706" stroke="#B45309" stroke-width="2"/>
+  <polygon points="120,105 130,130 115,125 105,102" fill="#78350F" opacity="0.7"/>
+  <!-- Topping 3: Baso Urat (Center) -->
+  <circle cx="100" cy="118" r="18" fill="#9A3412" stroke="#78350F" stroke-width="2"/>
+  <circle cx="96" cy="114" r="3" fill="#FED7AA" opacity="0.6"/>
+  <!-- Topping 4: Babat & Tetelan (Bottom Accents) -->
+  <path d="M 75,138 Q 85,145 95,138 Q 105,145 115,138" stroke="#B45309" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 85,146 Q 95,152 105,146" stroke="#92400E" stroke-width="4" stroke-linecap="round"/>
+</svg>

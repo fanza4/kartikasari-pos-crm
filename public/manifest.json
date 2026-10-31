@@ -1,0 +1,37 @@
+{
+  "name": "Mie Baso & Aneka Jus Kartika Sari (KS)",
+  "short_name": "Mie Baso KS",
+  "description": "Smart CRM & Touch POS untuk Mie Baso & Aneka Jus Kartika Sari Garut",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#166534",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "550x550",
+      "type": "image/jpeg"
+    }
+  ],
+  "categories": ["food", "business", "productivity"]
+}
