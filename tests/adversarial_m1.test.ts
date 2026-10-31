@@ -156,11 +156,15 @@ describe('Adversarial Stress Test: Master Data, Currency Formatting & Pricing (M
   describe('3. Topping Pricing & Ala Carte Integrity', () => {
     const EXPECTED_TOPPING_NAMES = ['Babat', 'Tetelan', 'Baso Urat', 'Siomay', 'Tahu'];
 
-    it('TOPPINGS array contains exactly 5 toppings, all priced at exactly Rp 5.000', () => {
+    it('TOPPINGS array contains exactly 5 toppings (Baso Urat 10k, others 5k)', () => {
       expect(TOPPINGS.length).toBe(5);
 
       TOPPINGS.forEach((t) => {
-        expect(t.price).toBe(5000);
+        if (t.name === 'Baso Urat') {
+          expect(t.price).toBe(10000);
+        } else {
+          expect(t.price).toBe(5000);
+        }
         expect(typeof t.id).toBe('string');
         expect(t.id.startsWith('top-')).toBe(true);
       });
@@ -168,16 +172,24 @@ describe('Adversarial Stress Test: Master Data, Currency Formatting & Pricing (M
       EXPECTED_TOPPING_NAMES.forEach((name) => {
         const match = TOPPINGS.find((t) => t.name.toLowerCase() === name.toLowerCase());
         expect(match).toBeDefined();
-        expect(match?.price).toBe(5000);
+        if (name === 'Baso Urat') {
+          expect(match?.price).toBe(10000);
+        } else {
+          expect(match?.price).toBe(5000);
+        }
       });
     });
 
-    it('MENU_ITEMS category "topping" items match the 5 canonical toppings at Rp 5.000', () => {
+    it('MENU_ITEMS category "topping" items match canonical toppings (Baso Urat 10k, others 5k)', () => {
       const catalogToppings = MENU_ITEMS.filter((i) => i.category === 'topping');
       expect(catalogToppings.length).toBe(5);
 
       catalogToppings.forEach((item) => {
-        expect(item.price).toBe(5000);
+        if (item.name === 'Baso Urat') {
+          expect(item.price).toBe(10000);
+        } else {
+          expect(item.price).toBe(5000);
+        }
         expect(item.isNoodlePortion).toBe(false);
         expect(item.givesStamp).toBe(false);
       });
@@ -296,10 +308,10 @@ describe('Adversarial Stress Test: Master Data, Currency Formatting & Pricing (M
         4 * pEsJeruk +
         5 * pTehBotol;
 
-      // 104.000 + 120.000 + 96.000 + 25.000 + 25.000 + 40.000 + 30.000 = 440.000
-      expect(total).toBe(440000);
-      expect(formatRupiahUtils(total)).toBe('Rp 440.000');
-      expect(formatRupiahStorage(total)).toBe('Rp 440.000');
+      // 104.000 + 120.000 + 96.000 + 25.000 + 25.000 + 60.000 + 30.000 = 460.000
+      expect(total).toBe(460000);
+      expect(formatRupiahUtils(total)).toBe('Rp 460.000');
+      expect(formatRupiahStorage(total)).toBe('Rp 460.000');
 
       const totalStamps = 4 * 1 + 3 * 1 + 2 * 1; // 9 stamps
       expect(totalStamps).toBe(9);

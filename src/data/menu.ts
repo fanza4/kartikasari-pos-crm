@@ -3,7 +3,7 @@ import { MenuItem, ToppingItem, StoreSettings, Customer } from '../types';
 export const TOPPINGS: ToppingItem[] = [
   { id: 'top-babat', name: 'Babat', price: 5000 },
   { id: 'top-tetelan', name: 'Tetelan', price: 5000 },
-  { id: 'top-baso-urat', name: 'Baso Urat', price: 5000 },
+  { id: 'top-baso-urat', name: 'Baso Urat', price: 10000 },
   { id: 'top-siomay', name: 'Siomay', price: 5000 },
   { id: 'top-tahu', name: 'Tahu', price: 5000 },
 ];
@@ -299,7 +299,7 @@ export const MENU_ITEMS: MenuItem[] = [
     name: 'Baso Urat',
     category: 'topping',
     portionType: 'addon',
-    price: 5000,
+    price: 10000,
     composition: ['1 Baso Urat Jumbo'],
     isNoodlePortion: false,
     givesStamp: false,
@@ -353,7 +353,7 @@ export const MENU_ITEMS: MenuItem[] = [
     name: 'Es Jeruk',
     category: 'minuman',
     portionType: 'beverage',
-    price: 10000,
+    price: 15000,
     composition: ['Jeruk Peras Murni', 'Es Batu', 'Gula Asli'],
     isNoodlePortion: false,
     givesStamp: false,

@@ -60,25 +60,29 @@ describe('R7 & Master Data: Menu Items, Pricing, Composition, Variants & Currenc
       expect(komplitKhusus?.name).toContain('Komplit Khusus');
     });
 
-    it('T1.4: validates all 5 toppings are priced exactly at Rp 5.000 each', () => {
+    it('T1.4: validates all 5 toppings are priced correctly (Baso Urat 10k, others 5k)', () => {
       const expectedToppings = ['Babat', 'Tetelan', 'Baso Urat', 'Siomay', 'Tahu'];
       expect(TOPPINGS.length).toBe(5);
 
       expectedToppings.forEach((name) => {
         const found = TOPPINGS.find((t) => t.name.toLowerCase() === name.toLowerCase());
         expect(found).toBeDefined();
-        expect(found?.price).toBe(5000);
+        if (name === 'Baso Urat') {
+          expect(found?.price).toBe(10000);
+        } else {
+          expect(found?.price).toBe(5000);
+        }
       });
     });
 
-    it('T1.5: validates beverages: Teh Botol (6k), Es Jeruk (10k), Air Putih (6k), Aneka Jus (custom price entry)', () => {
+    it('T1.5: validates beverages: Teh Botol (6k), Es Jeruk (15k), Air Putih (6k), Aneka Jus (custom price entry)', () => {
       const tehBotol = MENU_ITEMS.find((i) => i.id === 'minuman-teh-botol');
       const esJeruk = MENU_ITEMS.find((i) => i.id === 'minuman-es-jeruk');
       const airPutih = MENU_ITEMS.find((i) => i.id === 'minuman-air-putih');
       const anekaJus = MENU_ITEMS.find((i) => i.id === 'minuman-aneka-jus');
 
       expect(tehBotol?.price).toBe(6000);
-      expect(esJeruk?.price).toBe(10000);
+      expect(esJeruk?.price).toBe(15000);
       expect(airPutih?.price).toBe(6000);
       expect(anekaJus?.allowPriceOverride || anekaJus?.isCustomPrice).toBeTruthy();
     });
@@ -178,7 +182,7 @@ describe('R7 & Master Data: Menu Items, Pricing, Composition, Variants & Currenc
       // Customer orders:
       // 1x Mie Baso Seporsi (Kuah) -> 26.000
       // 1x Mie Baso Komplit Khusus (Yamin Asin) -> 40.000
-      // 1x Es Jeruk -> 10.000
+      // 1x Es Jeruk -> 15.000
       // 1x Aneka Jus (custom price 15.000)
       const p1 = MENU_ITEMS.find((i) => i.id === 'kuah-seporsi')!.price;
       const p2 = MENU_ITEMS.find((i) => i.id === 'yamin-asin-komplit')!.price;
@@ -186,8 +190,8 @@ describe('R7 & Master Data: Menu Items, Pricing, Composition, Variants & Currenc
       const customJusPrice = 15000;
 
       const subtotal = p1 + p2 + p3 + customJusPrice;
-      expect(subtotal).toBe(91000);
-      expect(formatRupiah(subtotal)).toBe('Rp 91.000');
+      expect(subtotal).toBe(96000);
+      expect(formatRupiah(subtotal)).toBe('Rp 96.000');
     });
   });
 });

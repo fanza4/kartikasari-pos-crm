@@ -52,20 +52,22 @@ describe('Mie Baso Kartika Sari POS & CRM System Tests', () => {
       expect(tambahTahu?.price).toBe(29000);
     });
 
-    it('should verify all Add-on Toppings are exactly Rp 5.000', () => {
+    it('should verify Add-on Toppings (Baso Urat 10k, others 5k)', () => {
       expect(TOPPINGS.length).toBe(5);
-      TOPPINGS.forEach((top) => {
+      const urat = TOPPINGS.find((t) => t.id === 'top-baso-urat');
+      expect(urat?.price).toBe(10000);
+      TOPPINGS.filter((t) => t.id !== 'top-baso-urat').forEach((top) => {
         expect(top.price).toBe(5000);
       });
     });
 
-    it('should verify Beverages prices (Teh Botol 6k, Es Jeruk 10k, Air Putih 6k)', () => {
+    it('should verify Beverages prices (Teh Botol 6k, Es Jeruk 15k, Air Putih 6k)', () => {
       const teh = MENU_ITEMS.find((m) => m.id === 'minuman-teh-botol');
       const jeruk = MENU_ITEMS.find((m) => m.id === 'minuman-es-jeruk');
       const air = MENU_ITEMS.find((m) => m.id === 'minuman-air-putih');
 
       expect(teh?.price).toBe(6000);
-      expect(jeruk?.price).toBe(10000);
+      expect(jeruk?.price).toBe(15000);
       expect(air?.price).toBe(6000);
     });
   });

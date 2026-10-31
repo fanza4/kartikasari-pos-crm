@@ -144,21 +144,21 @@ describe('R4: Touch POS (Cashier System) & Cart Transactions', () => {
     });
 
     it('T1.3: dynamic cart quantity increment and decrement adjusts subtotal accordingly', () => {
-      const esJeruk = MENU_ITEMS.find((i) => i.id === 'minuman-es-jeruk')!; // 10.000
+      const esJeruk = MENU_ITEMS.find((i) => i.id === 'minuman-es-jeruk')!; // 15.000
       cart.addToCart(esJeruk);
       const cartItemId = cart.getItems()[0].cartItemId;
 
-      expect(cart.getTotalAmount()).toBe(10000);
+      expect(cart.getTotalAmount()).toBe(15000);
 
       // Increment
       cart.updateQuantity(cartItemId, 1);
       expect(cart.getItems()[0].quantity).toBe(2);
-      expect(cart.getTotalAmount()).toBe(20000);
+      expect(cart.getTotalAmount()).toBe(30000);
 
       // Decrement
       cart.updateQuantity(cartItemId, -1);
       expect(cart.getItems()[0].quantity).toBe(1);
-      expect(cart.getTotalAmount()).toBe(10000);
+      expect(cart.getTotalAmount()).toBe(15000);
 
       // Decrement to 0 removes from cart
       cart.updateQuantity(cartItemId, -1);
@@ -384,14 +384,14 @@ describe('R4: Touch POS (Cashier System) & Cart Transactions', () => {
       cart.addToCart(anekaJus);
       cart.updateCustomPrice(cart.getItems()[2].cartItemId, 15000);
 
-      // Expected total: 62.000 + 10.000 + 15.000 = 87.000
-      expect(cart.getTotalAmount()).toBe(87000);
+      // Expected total: 62.000 + 15.000 + 15.000 = 92.000
+      expect(cart.getTotalAmount()).toBe(92000);
 
       // Customer pays with Rp 100.000 cash
       const cashGiven = 100000;
       const change = cashGiven - cart.getTotalAmount();
-      expect(change).toBe(13000);
-      expect(formatRupiah(change)).toMatch(/Rp\s*13\.000/);
+      expect(change).toBe(8000);
+      expect(formatRupiah(change)).toMatch(/Rp\s*8\.000/);
 
       // Stamps earned = 2 (from 2 portions of Mie Kuah)
       expect(cart.getNoodleStampsEarned()).toBe(2);
