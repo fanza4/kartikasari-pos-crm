@@ -23,6 +23,31 @@ import {
   getActiveOrderId,
   setActiveOrderId,
 } from '../services/storage';
+import {
+  fetchCloudOrders,
+  subscribeToCloudOrders,
+  pushOrderToCloud,
+} from '../services/supabaseOrders';
+
+const mergeOrders = (local: Order[], cloud: Order[]): Order[] => {
+  const map = new Map<string, Order>();
+  local.forEach((o) => map.set(o.id, o));
+  cloud.forEach((o) => {
+    const existing = map.get(o.id);
+    if (!existing) {
+      map.set(o.id, o);
+    } else {
+      const existingTime = new Date(existing.paidAt || existing.createdAt).getTime();
+      const cloudTime = new Date(o.paidAt || o.createdAt).getTime();
+      if (cloudTime >= existingTime || o.paymentStatus === 'Sudah Dibayar') {
+        map.set(o.id, o);
+      }
+    }
+  });
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+};
 
 interface CustomerOrderContextType {
   cart: CustomerOrderItem[];
@@ -89,10 +114,28 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
     (o) => o.orderStatus === 'Pesanan Baru' || o.orderStatus === 'Menunggu Pembayaran'
   ).length;
 
+  const syncWithCloud = useCallback(async () => {
+    try {
+      const cloudOrders = await fetchCloudOrders();
+      if (cloudOrders && cloudOrders.length > 0) {
+        setOrders((prev) => {
+          const merged = mergeOrders(prev, cloudOrders);
+          try {
+            localStorage.setItem('ks_orders_v1', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    } catch {
+      // Ignore background sync errors
+    }
+  }, []);
+
   const refreshOrders = useCallback(() => {
     const loaded = getOrders();
     setOrders(loaded);
-  }, []);
+    syncWithCloud();
+  }, [syncWithCloud]);
 
   // Synchronize cart changes to local storage
   useEffect(() => {
@@ -104,8 +147,36 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
     setActiveOrderId(activeOrderIdState);
   }, [activeOrderIdState]);
 
-  // Listen for order events across tabs / window
+  // Supabase Realtime Subscription & Polling across ALL devices
   useEffect(() => {
+    // 1. Initial Cloud Sync
+    syncWithCloud();
+
+    // 2. Realtime WebSocket listener across all devices
+    const unsubscribe = subscribeToCloudOrders((updatedOrder) => {
+      setOrders((prev) => {
+        const existing = prev.find((o) => o.id === updatedOrder.id);
+        const isNew = !existing;
+        const justPaid = updatedOrder.paymentStatus === 'Sudah Dibayar' && existing?.paymentStatus !== 'Sudah Dibayar';
+
+        const merged = mergeOrders(prev, [updatedOrder]);
+        try {
+          localStorage.setItem('ks_orders_v1', JSON.stringify(merged));
+        } catch {}
+
+        if (isNew || justPaid) {
+          playChime();
+        }
+
+        return merged;
+      });
+    });
+
+    // 3. Fast fallback interval (every 3 seconds)
+    const interval = setInterval(() => {
+      syncWithCloud();
+    }, 3000);
+
     const handleOrderEvent = () => {
       refreshOrders();
     };
@@ -113,15 +184,13 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
     window.addEventListener('ks_order_event', handleOrderEvent);
     window.addEventListener('storage', handleOrderEvent);
 
-    // Periodic poll every 4 seconds to guarantee freshness
-    const interval = setInterval(refreshOrders, 4000);
-
     return () => {
+      unsubscribe();
       window.removeEventListener('ks_order_event', handleOrderEvent);
       window.removeEventListener('storage', handleOrderEvent);
       clearInterval(interval);
     };
-  }, [refreshOrders]);
+  }, [syncWithCloud, refreshOrders]);
 
   const addToCart = (
     menuItem: MenuItem,
@@ -216,6 +285,7 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     saveOrder(newOrder);
+    pushOrderToCloud(newOrder).catch(() => {});
     setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== orderId)]);
     setActiveOrderIdState(orderId);
     clearCart();
@@ -232,18 +302,27 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
     paymentStatus?: PaymentStatus
   ): Order | undefined => {
     const updated = updateOrderStatus(orderId, orderStatus, paymentStatus);
+    if (updated) {
+      pushOrderToCloud(updated).catch(() => {});
+    }
     refreshOrders();
     return updated;
   };
 
   const confirmPayment = (orderId: string, method?: OrderPaymentMethod): Order | undefined => {
     const updated = confirmOrderPayment(orderId, method);
+    if (updated) {
+      pushOrderToCloud(updated).catch(() => {});
+    }
     refreshOrders();
     return updated;
   };
 
   const simulateQrisVerification = (orderId: string) => {
     const res = simulateQrisPaymentVerification(orderId);
+    if (res.order) {
+      pushOrderToCloud(res.order).catch(() => {});
+    }
     refreshOrders();
     return res;
   };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { getTransactions, formatRupiah, formatDateIndo } from '../services/storage';
 import { Transaction } from '../types';
-import { BarChart3, TrendingUp, CreditCard, Banknote, Calendar, ArrowUpRight, DollarSign, Receipt, PieChart } from 'lucide-react';
+import { BarChart3, TrendingUp, CreditCard, Banknote, Calendar, ArrowUpRight, DollarSign, Receipt, PieChart, FileSpreadsheet, Printer, Download } from 'lucide-react';
 
 export const ReportsAnalytics: React.FC = () => {
   const [period, setPeriod] = useState<'today' | '7days' | '30days'>('today');
@@ -23,6 +23,8 @@ export const ReportsAnalytics: React.FC = () => {
     }
     return true;
   });
+
+  const periodLabel = period === 'today' ? 'Hari Ini' : period === '7days' ? '7 Hari Terakhir' : '30 Hari Terakhir';
 
   // Calculate metrics
   const totalRevenue = filteredTx.reduce((sum, tx) => sum + tx.totalAmount, 0);
@@ -57,6 +59,244 @@ export const ReportsAnalytics: React.FC = () => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
+  // 1. Ekspor ke CSV (Spreadsheet Excel)
+  const handleExportCSV = () => {
+    if (filteredTx.length === 0) {
+      alert('Belum ada transaksi untuk diekspor pada periode ini.');
+      return;
+    }
+
+    const headers = [
+      'No. Nota',
+      'Tanggal & Waktu',
+      'Nama Pelanggan',
+      'No. WhatsApp',
+      'Metode Pembayaran',
+      'Rincian Menu',
+      'Total Omset (Rp)',
+      'Stempel Diperoleh',
+    ];
+
+    const escapeCsv = (val: string | number) => {
+      const str = String(val ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = filteredTx.map((tx) => {
+      const itemsSummary = tx.items
+        .map((i) => {
+          const topStr = i.selectedToppings?.length ? ` (+${i.selectedToppings.map((t) => t.name).join(', ')})` : '';
+          return `${i.quantity}x ${i.menuItem.name}${topStr}`;
+        })
+        .join('; ');
+
+      return [
+        escapeCsv(tx.invoiceNumber),
+        escapeCsv(formatDateIndo(tx.createdAt)),
+        escapeCsv(tx.customerName || 'Tamu Kasir'),
+        escapeCsv(tx.customerWhatsapp || tx.customerPhone || '-'),
+        escapeCsv(tx.paymentMethod.toUpperCase()),
+        escapeCsv(itemsSummary),
+        escapeCsv(tx.totalAmount),
+        escapeCsv(tx.stampsEarned || 0),
+      ].join(',');
+    });
+
+    const totalStamps = filteredTx.reduce((sum, tx) => sum + (tx.stampsEarned || 0), 0);
+    const summaryRow = [
+      'TOTAL OMSET KESELURUHAN',
+      escapeCsv(periodLabel),
+      escapeCsv(`${totalCount} Nota`),
+      '',
+      '',
+      '',
+      escapeCsv(totalRevenue),
+      escapeCsv(totalStamps),
+    ].join(',');
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows, summaryRow].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_Penjualan_Kartika_Sari_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 2. Ekspor ke PDF (Print-to-PDF Window)
+  const handleExportPDF = () => {
+    if (filteredTx.length === 0) {
+      alert('Belum ada transaksi untuk diekspor pada periode ini.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Gagal membuka jendela cetak. Pastikan browser Anda mengizinkan pop-up.');
+      return;
+    }
+
+    const printHtml = `
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <title>Laporan Penjualan - Mie Baso Kartika Sari</title>
+        <style>
+          @page { size: A4 portrait; margin: 15mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; font-size: 10pt; line-height: 1.4; }
+          .header { text-align: center; border-bottom: 3px double #166534; padding-bottom: 12px; margin-bottom: 18px; }
+          .store-name { font-size: 18pt; font-weight: 900; color: #166534; margin: 0; letter-spacing: -0.5px; }
+          .store-sub { font-size: 9pt; color: #64748b; margin-top: 3px; }
+          .report-title { font-size: 13pt; font-weight: 800; color: #0f172a; margin: 14px 0 2px; text-transform: uppercase; }
+          .report-meta { font-size: 9pt; color: #475569; }
+          
+          .kpi-container { display: flex; gap: 10px; margin-bottom: 20px; }
+          .kpi-box { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #f8fafc; text-align: center; }
+          .kpi-title { font-size: 7.5pt; text-transform: uppercase; font-weight: 700; color: #64748b; }
+          .kpi-value { font-size: 12pt; font-weight: 900; color: #166534; margin-top: 3px; }
+          
+          h3 { font-size: 10pt; font-weight: 800; color: #0f172a; margin: 16px 0 6px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 9pt; }
+          th { background: #f1f5f9; color: #334155; text-align: left; padding: 6px 8px; font-weight: 700; border: 1px solid #cbd5e1; font-size: 8pt; text-transform: uppercase; }
+          td { padding: 6px 8px; border: 1px solid #e2e8f0; vertical-align: top; }
+          tr:nth-child(even) td { background: #fcfcfc; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 7pt; font-weight: 700; text-transform: uppercase; }
+          .badge-cash { background: #dcfce7; color: #166534; }
+          .badge-qris { background: #fef3c7; color: #92400e; }
+          .total-row td { font-weight: 900; background: #f1f5f9; font-size: 9.5pt; border-top: 2px solid #94a3b8; }
+          
+          .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 8.5pt; color: #64748b; page-break-inside: avoid; }
+          .sign-box { text-align: center; width: 160px; }
+          .sign-line { margin-top: 45px; border-top: 1px solid #64748b; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="store-name">MIE BASO KARTIKA SARI (KS)</div>
+          <div class="store-sub">Jln. Otista No 127 Paseban (Depan Rumah Beku), Garut Satu, Jawa Barat • WhatsApp: 08122334455</div>
+          <div class="report-title">Laporan Penjualan & Analitik Toko</div>
+          <div class="report-meta">Periode: <strong>${periodLabel}</strong> • Dicetak: ${formatDateIndo(new Date().toISOString())}</div>
+        </div>
+
+        <div class="kpi-container">
+          <div class="kpi-box">
+            <div class="kpi-title">Total Omset</div>
+            <div class="kpi-value">${formatRupiah(totalRevenue)}</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-title">Jumlah Transaksi</div>
+            <div class="kpi-value">${totalCount} Nota</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-title">Uang Tunai (Cash)</div>
+            <div class="kpi-value">${formatRupiah(cashTotal)}</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-title">Non-Tunai (QRIS)</div>
+            <div class="kpi-value">${formatRupiah(qrisTotal)}</div>
+          </div>
+        </div>
+
+        <h3>Menu Terlaris (Top 5 Pareto)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 30px;" class="text-center">No</th>
+              <th>Nama Menu</th>
+              <th class="text-right" style="width: 100px;">Jumlah Porsi</th>
+              <th class="text-right" style="width: 140px;">Total Omset</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${paretoItems.map((item, idx) => `
+              <tr>
+                <td class="text-center">${idx + 1}</td>
+                <td><strong>${item.name}</strong></td>
+                <td class="text-right">${item.count} porsi</td>
+                <td class="text-right">${formatRupiah(item.revenue)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <h3>Rincian Nota Penjualan (${filteredTx.length} Transaksi)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 90px;">No. Nota</th>
+              <th style="width: 120px;">Waktu</th>
+              <th>Pelanggan</th>
+              <th style="width: 60px;" class="text-center">Metode</th>
+              <th>Rincian Item</th>
+              <th class="text-right" style="width: 100px;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredTx.map(tx => {
+              const itemsList = tx.items.map(i => `${i.quantity}x ${i.menuItem.name}`).join(', ');
+              return `
+                <tr>
+                  <td><strong>${tx.invoiceNumber}</strong></td>
+                  <td>${formatDateIndo(tx.createdAt)}</td>
+                  <td>${tx.customerName || 'Tamu Kasir'}</td>
+                  <td class="text-center">
+                    <span class="badge ${tx.paymentMethod === 'cash' ? 'badge-cash' : 'badge-qris'}">
+                      ${tx.paymentMethod.toUpperCase()}
+                    </span>
+                  </td>
+                  <td><small>${itemsList}</small></td>
+                  <td class="text-right"><strong>${formatRupiah(tx.totalAmount)}</strong></td>
+                </tr>
+              `;
+            }).join('')}
+            <tr class="total-row">
+              <td colspan="5" class="text-right">TOTAL OMSET:</td>
+              <td class="text-right">${formatRupiah(totalRevenue)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>
+            Dicetak otomatis dari Sistem Kasir POS & CRM Toko Mie Baso Kartika Sari Garut.<br>
+            Dokumen resmi rekonsiliasi keuangan kasir & owner toko.
+          </div>
+          <div class="sign-box">
+            <div>Pengelola Toko,</div>
+            <div class="sign-line"></div>
+            <div>Mie Baso Kartika Sari</div>
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
@@ -74,38 +314,61 @@ export const ReportsAnalytics: React.FC = () => {
           </p>
         </div>
 
-        {/* Period Pills */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-          <button
-            onClick={() => setPeriod('today')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              period === 'today'
-                ? 'bg-forest-800 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Hari Ini
-          </button>
-          <button
-            onClick={() => setPeriod('7days')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              period === '7days'
-                ? 'bg-forest-800 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            7 Hari Terakhir
-          </button>
-          <button
-            onClick={() => setPeriod('30days')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              period === '30days'
-                ? 'bg-forest-800 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            30 Hari Terakhir
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Period Pills */}
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            <button
+              onClick={() => setPeriod('today')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                period === 'today'
+                  ? 'bg-forest-800 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Hari Ini
+            </button>
+            <button
+              onClick={() => setPeriod('7days')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                period === '7days'
+                  ? 'bg-forest-800 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              7 Hari Terakhir
+            </button>
+            <button
+              onClick={() => setPeriod('30days')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                period === '30days'
+                  ? 'bg-forest-800 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              30 Hari Terakhir
+            </button>
+          </div>
+
+          {/* Export Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-extrabold shadow-sm transition-all active:scale-95"
+              title="Unduh Data Penjualan ke Format CSV (Excel)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+              <span>Export CSV</span>
+            </button>
+
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-forest-800 hover:bg-forest-900 text-white text-xs font-extrabold shadow-md shadow-forest-800/20 transition-all active:scale-95"
+              title="Cetak atau Simpan Laporan sebagai Dokumen PDF Resmi"
+            >
+              <Printer className="w-4 h-4 text-gold-400" />
+              <span>Export PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 

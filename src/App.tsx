@@ -177,15 +177,69 @@ const AppContent: React.FC = () => {
   );
 };
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center font-sans">
+          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-slate-200 space-y-4">
+            <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto text-2xl font-black">
+              !
+            </div>
+            <h2 className="text-xl font-black text-slate-900">Mie Baso Kartika Sari</h2>
+            <p className="text-sm text-slate-600">
+              Terjadi sedikit kendala teknis saat memuat halaman. Silakan muat ulang aplikasi.
+            </p>
+            <button
+              onClick={() => {
+                window.location.href = '/';
+              }}
+              className="w-full py-3 px-4 bg-forest-800 hover:bg-forest-900 text-white font-extrabold rounded-2xl shadow-md transition-all active:scale-95"
+            >
+              Muat Ulang Halaman Utama
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <CustomerOrderProvider>
-          <AppContent />
-        </CustomerOrderProvider>
-      </CartProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <CustomerOrderProvider>
+            <AppContent />
+          </CustomerOrderProvider>
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 

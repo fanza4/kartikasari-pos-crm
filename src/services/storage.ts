@@ -1,5 +1,6 @@
 import { Customer, Transaction, StoreSettings, CustomerSegment, Order, CustomerOrderItem, OrderStatus, OrderPaymentMethod, PaymentStatus, MenuItem } from '../types';
 import { DEFAULT_STORE_SETTINGS, SEED_CUSTOMERS } from '../data/menuData';
+import { pushOrderToCloud } from './supabaseOrders';
 
 const STORAGE_KEYS = {
   CUSTOMERS: 'ks_customers_v1',
@@ -447,6 +448,11 @@ export const saveOrder = (order: Order): void => {
     window.dispatchEvent(new CustomEvent('ks_order_event', { detail: order }));
     window.dispatchEvent(new CustomEvent('ks_customer_event', { detail: { type: 'order', order } }));
   }
+
+  // Push immediately to Supabase Cloud so all devices/screens see the order in real-time
+  pushOrderToCloud(order).catch((err) => {
+    console.warn('Silent cloud order sync warning:', err);
+  });
 };
 
 export const getOrderById = (id: string): Order | undefined => {
