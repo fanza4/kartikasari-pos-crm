@@ -71,12 +71,35 @@ interface CustomerOrderContextType {
 
 const CustomerOrderContext = createContext<CustomerOrderContextType | undefined>(undefined);
 
-// Gentle web audio chime helper
+const areOrdersEqual = (a: Order[], b: Order[]): boolean => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i].id !== b[i].id ||
+      a[i].orderStatus !== b[i].orderStatus ||
+      a[i].paymentStatus !== b[i].paymentStatus ||
+      a[i].paidAt !== b[i].paidAt
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
+// Gentle web audio chime helper (singleton to avoid leaking AudioContexts)
+let sharedAudioCtx: AudioContext | null = null;
 const playChime = () => {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      sharedAudioCtx = new AudioCtx();
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    const ctx = sharedAudioCtx;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -120,6 +143,9 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
       if (cloudOrders && cloudOrders.length > 0) {
         setOrders((prev) => {
           const merged = mergeOrders(prev, cloudOrders);
+          if (areOrdersEqual(prev, merged)) {
+            return prev;
+          }
           try {
             localStorage.setItem('ks_orders_v1', JSON.stringify(merged));
           } catch {}
@@ -133,7 +159,7 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refreshOrders = useCallback(() => {
     const loaded = getOrders();
-    setOrders(loaded);
+    setOrders((prev) => (areOrdersEqual(prev, loaded) ? prev : loaded));
     syncWithCloud();
   }, [syncWithCloud]);
 
@@ -164,6 +190,11 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.setItem('ks_orders_v1', JSON.stringify(merged));
         } catch {}
 
+        // Ensure customer record and stamps are in sync if order was paid or completed
+        if (updatedOrder.paymentStatus === 'Sudah Dibayar') {
+          saveOrder(updatedOrder);
+        }
+
         if (isNew || justPaid) {
           playChime();
         }
@@ -172,10 +203,12 @@ export const CustomerOrderProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     });
 
-    // 3. Fast fallback interval (every 3 seconds)
+    // 3. Fallback polling only when tab is active (every 8 seconds)
     const interval = setInterval(() => {
-      syncWithCloud();
-    }, 3000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        syncWithCloud();
+      }
+    }, 8000);
 
     const handleOrderEvent = () => {
       refreshOrders();

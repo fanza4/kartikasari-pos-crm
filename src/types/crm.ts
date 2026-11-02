@@ -22,4 +22,5 @@ export interface Customer {
   segment?: CustomerSegment;
   createdAt?: string;
   lastOrderPaidTracked?: string[];
+  stampsOrdersTracked?: string[];
 }

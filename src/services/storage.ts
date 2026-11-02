@@ -1,6 +1,7 @@
 import { Customer, Transaction, StoreSettings, CustomerSegment, Order, CustomerOrderItem, OrderStatus, OrderPaymentMethod, PaymentStatus, MenuItem } from '../types';
 import { DEFAULT_STORE_SETTINGS, SEED_CUSTOMERS } from '../data/menuData';
 import { pushOrderToCloud } from './supabaseOrders';
+import { pushCustomerToCloud } from './supabaseCustomers';
 
 const STORAGE_KEYS = {
   CUSTOMERS: 'ks_customers_v1',
@@ -161,6 +162,11 @@ export const saveCustomer = (customer: Customer): void => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('ks_customer_event', { detail: { type: 'save', customer } }));
   }
+
+  // Push to Supabase Cloud so all devices/screens share customer data in real-time
+  pushCustomerToCloud(customer).catch((err) => {
+    console.warn('Silent cloud customer sync warning:', err);
+  });
 };
 
 export const deleteCustomer = (customerId: string): boolean => {
@@ -230,10 +236,12 @@ export const subscribeToCrmChanges = (callback: () => void): (() => void) => {
   window.addEventListener('ks_order_event', handleCustomEvent);
   window.addEventListener('storage', handleStorageEvent);
 
-  // Periodic heartbeat polling check
+  // Periodic heartbeat polling check (gentle and only when document is visible)
   const interval = setInterval(() => {
-    callback();
-  }, 2000);
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      callback();
+    }
+  }, 10000);
 
   return () => {
     window.removeEventListener('ks_customer_event', handleCustomEvent);
@@ -277,11 +285,18 @@ export const saveTransaction = (tx: Transaction): void => {
   // Update or create customer profile
   if (tx.customerWhatsapp || tx.customerName) {
     const existing = findCustomerByPhoneOrName(tx.customerWhatsapp || tx.customerName || '');
+    const orderRef = tx.invoiceNumber || tx.id;
     if (existing) {
       existing.totalVisits += 1;
-      existing.lifetimeValue += tx.totalAmount;
       existing.lastVisit = tx.createdAt;
-      existing.stampsCount = Math.min(10, existing.stampsCount + tx.stampsEarned);
+      if (!existing.lastOrderPaidTracked?.includes(orderRef)) {
+        existing.lifetimeValue += tx.totalAmount;
+        existing.lastOrderPaidTracked = [...(existing.lastOrderPaidTracked || []), orderRef];
+      }
+      if (!existing.stampsOrdersTracked?.includes(orderRef)) {
+        existing.stampsCount = Math.min(10, (existing.stampsCount || 0) + (tx.stampsEarned || 0));
+        existing.stampsOrdersTracked = [...(existing.stampsOrdersTracked || []), orderRef];
+      }
       if (tx.rewardClaimed) {
         existing.stampsCount = 0; // Reset after claim
         existing.rewardsClaimed = (existing.rewardsClaimed || 0) + 1;
@@ -292,10 +307,13 @@ export const saveTransaction = (tx: Transaction): void => {
         id: 'cust-' + Date.now(),
         name: tx.customerName || 'Pelanggan Kartika Sari',
         whatsapp: tx.customerWhatsapp,
+        phone: tx.customerWhatsapp,
         totalVisits: 1,
         lifetimeValue: tx.totalAmount,
         lastVisit: tx.createdAt,
-        stampsCount: Math.min(10, tx.stampsEarned),
+        stampsCount: Math.min(10, tx.stampsEarned || 0),
+        stampsOrdersTracked: [orderRef],
+        lastOrderPaidTracked: [orderRef],
         rewardsClaimed: 0,
         createdAt: tx.createdAt,
       };
@@ -406,6 +424,18 @@ export const getOrders = (): Order[] => {
   return [];
 };
 
+export const calculateOrderStamps = (order: Order): number => {
+  if (!order || !order.items || !Array.isArray(order.items)) return 0;
+  return order.items.reduce((acc, item) => {
+    const isNoodle = Boolean(
+      item.givesStamp ||
+      (item as any).isNoodlePortion ||
+      ['mie_kuah', 'yamin_manis', 'yamin_asin'].includes(item.category)
+    );
+    return isNoodle ? acc + (item.quantity || 1) : acc;
+  }, 0);
+};
+
 export const saveOrder = (order: Order): void => {
   const orders = getOrders();
   const index = orders.findIndex((o) => o.id === order.id);
@@ -418,26 +448,38 @@ export const saveOrder = (order: Order): void => {
 
   // Auto-sync customer profile to CRM immediately upon order
   if (order.customerWhatsapp || order.customerName) {
+    const isPaid = order.paymentStatus === 'Sudah Dibayar';
+    const earnedStamps = calculateOrderStamps(order);
     const existing = findCustomerByPhoneOrName(order.customerWhatsapp || order.customerName || '');
-    if (!existing && order.customerWhatsapp) {
+
+    if (!existing && (order.customerWhatsapp || order.customerName)) {
       const newCust: Customer = {
         id: 'cust-' + Date.now(),
         name: order.customerName || 'Pelanggan Kartika Sari',
-        whatsapp: order.customerWhatsapp,
-        phone: order.customerWhatsapp,
+        whatsapp: order.customerWhatsapp || '',
+        phone: order.customerWhatsapp || '',
         totalVisits: 1,
-        lifetimeValue: order.paymentStatus === 'Sudah Dibayar' ? order.totalAmount : 0,
-        stampsCount: 0,
+        lifetimeValue: isPaid ? order.totalAmount : 0,
+        stampsCount: isPaid ? Math.min(10, earnedStamps) : 0,
+        stampsOrdersTracked: isPaid ? [order.id] : [],
+        lastOrderPaidTracked: isPaid ? [order.id] : [],
         rewardsClaimed: 0,
         lastVisit: order.createdAt,
         createdAt: order.createdAt,
+        segment: 'Pelanggan Baru',
       };
       saveCustomer(newCust);
     } else if (existing) {
       existing.lastVisit = order.createdAt;
-      if (order.paymentStatus === 'Sudah Dibayar' && order.paidAt && !existing.lastOrderPaidTracked?.includes(order.id)) {
-        existing.lifetimeValue += order.totalAmount;
-        existing.lastOrderPaidTracked = [...(existing.lastOrderPaidTracked || []), order.id];
+      if (isPaid) {
+        if (!existing.lastOrderPaidTracked?.includes(order.id)) {
+          existing.lifetimeValue = (existing.lifetimeValue || 0) + order.totalAmount;
+          existing.lastOrderPaidTracked = [...(existing.lastOrderPaidTracked || []), order.id];
+        }
+        if (!existing.stampsOrdersTracked?.includes(order.id)) {
+          existing.stampsCount = Math.min(10, (existing.stampsCount || 0) + earnedStamps);
+          existing.stampsOrdersTracked = [...(existing.stampsOrdersTracked || []), order.id];
+        }
       }
       saveCustomer(existing);
     }
@@ -485,9 +527,13 @@ export const updateOrderStatus = (
     order.readyAt = now;
   } else if (newOrderStatus === 'Selesai' && !order.completedAt) {
     order.completedAt = now;
+    if (order.paymentStatus !== 'Sudah Dibayar') {
+      order.paymentStatus = 'Sudah Dibayar';
+      if (!order.paidAt) order.paidAt = now;
+    }
 
     // Award stamps and record to CRM/Transactions if customer info is present
-    const noodleStamps = order.items.reduce((acc, item) => (item.givesStamp ? acc + item.quantity : acc), 0);
+    const noodleStamps = calculateOrderStamps(order);
     const mockTx: Transaction = {
       id: 'tx-ord-' + order.id,
       invoiceNumber: order.id,

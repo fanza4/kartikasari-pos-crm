@@ -474,4 +474,18 @@ export const SEED_CUSTOMERS: Customer[] = [
     segment: 'Reguler',
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
   },
+  {
+    id: 'cust-fanza',
+    name: 'Muhammad Fanza Yuseftian',
+    phone: '08998022630',
+    whatsapp: '08998022630',
+    totalVisits: 2,
+    lifetimeValue: 58000,
+    lastVisitDate: new Date().toISOString(),
+    lastVisit: new Date().toISOString(),
+    stampsCount: 2,
+    rewardsClaimed: 0,
+    segment: 'Pelanggan Baru',
+    createdAt: new Date().toISOString(),
+  },
 ];

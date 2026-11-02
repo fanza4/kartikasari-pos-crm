@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
-import { findCustomerByPhoneOrName, getCustomers, saveCustomer } from '../services/storage';
-import { Award, Search, X, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
+import { findCustomerByPhoneOrName, saveCustomer, getOrders, calculateOrderStamps } from '../services/storage';
+import { fetchCloudCustomerByPhoneOrName, subscribeToCloudCustomers } from '../services/supabaseCustomers';
+import { Award, Search, X, CheckCircle2, Sparkles, AlertCircle, RefreshCw, Radio } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface StampCardModalProps {
@@ -13,27 +14,144 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
   const [searchQuery, setSearchQuery] = useState('');
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLiveSynced, setIsLiveSynced] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // Synchronous immediate resolution + background cloud sync
+  const performSearch = useCallback((query: string) => {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
+
+    const cleanDigits = cleanQuery.replace(/[^0-9]/g, '').replace(/^62/, '0');
+
+    // 1. Instant synchronous local storage lookup
+    const found = findCustomerByPhoneOrName(cleanQuery);
+
+    // 2. Reconcile with paid orders immediately
+    const allOrders = getOrders();
+    const customerPaidOrders = allOrders.filter((o) => {
+      if (o.paymentStatus !== 'Sudah Dibayar') return false;
+      if (cleanQuery && o.customerName && o.customerName.toLowerCase().includes(cleanQuery.toLowerCase())) {
+        return true;
+      }
+      if (cleanDigits && o.customerWhatsapp) {
+        const oDigits = o.customerWhatsapp.replace(/[^0-9]/g, '').replace(/^62/, '0');
+        if (oDigits === cleanDigits || oDigits.includes(cleanDigits) || cleanDigits.includes(oDigits)) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    const stampsFromOrders = customerPaidOrders.reduce((sum, o) => sum + calculateOrderStamps(o), 0);
+
+    let activeCust: Customer | null = null;
+    if (found) {
+      if (stampsFromOrders > (found.stampsCount || 0)) {
+        found.stampsCount = Math.min(10, stampsFromOrders);
+        saveCustomer(found);
+      }
+      activeCust = { ...found };
+      setCustomer(activeCust);
+      if (activeCust.stampsCount >= 10) {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      }
+    } else if (customerPaidOrders.length > 0) {
+      const primaryOrder = customerPaidOrders[0];
+      const synthesized: Customer = {
+        id: 'cust-' + Date.now(),
+        name: primaryOrder.customerName || cleanQuery,
+        whatsapp: primaryOrder.customerWhatsapp || (cleanDigits ? '0' + cleanDigits : ''),
+        phone: primaryOrder.customerWhatsapp || (cleanDigits ? '0' + cleanDigits : ''),
+        totalVisits: customerPaidOrders.length,
+        lifetimeValue: customerPaidOrders.reduce((sum, o) => sum + o.totalAmount, 0),
+        stampsCount: Math.min(10, stampsFromOrders),
+        rewardsClaimed: 0,
+        lastVisit: primaryOrder.createdAt,
+        createdAt: customerPaidOrders[customerPaidOrders.length - 1].createdAt,
+        segment: 'Pelanggan Baru',
+      };
+      saveCustomer(synthesized);
+      activeCust = synthesized;
+      setCustomer(activeCust);
+    } else {
+      setCustomer(null);
+    }
+
+    setHasSearched(true);
+
+    // 3. Parallel asynchronous cloud query via Supabase
+    setIsSearching(true);
+    fetchCloudCustomerByPhoneOrName(cleanQuery)
+      .then((cloudCust) => {
+        if (cloudCust) {
+          setCustomer((prev) => {
+            if (!prev || (cloudCust.stampsCount || 0) >= (prev.stampsCount || 0)) {
+              saveCustomer(cloudCust);
+              return { ...cloudCust };
+            }
+            return prev;
+          });
+          setIsLiveSynced(true);
+        }
+      })
+      .catch((err) => {
+        console.warn('Cloud sync error:', err);
+      })
+      .finally(() => {
+        setIsSearching(false);
+      });
+  }, []);
+
+  // Real-time synchronization while modal is open with active customer
+  useEffect(() => {
+    if (!isOpen || !customer) return;
+
+    const handleLocalEvent = () => {
+      const updated = findCustomerByPhoneOrName(customer.whatsapp || customer.name);
+      if (updated && updated.stampsCount !== customer.stampsCount) {
+        setCustomer({ ...updated });
+        setIsLiveSynced(true);
+      }
+    };
+
+    const unsubscribeCloud = subscribeToCloudCustomers((cloudCust) => {
+      const custDigits = (customer.whatsapp || customer.phone || '').replace(/[^0-9]/g, '').replace(/^62/, '0');
+      const cloudDigits = (cloudCust.whatsapp || cloudCust.phone || '').replace(/[^0-9]/g, '').replace(/^62/, '0');
+      const match =
+        (custDigits && cloudDigits && (custDigits === cloudDigits || custDigits.includes(cloudDigits) || cloudDigits.includes(custDigits))) ||
+        (customer.name.trim().toLowerCase() === cloudCust.name.trim().toLowerCase());
+
+      if (match) {
+        setCustomer({ ...cloudCust });
+        saveCustomer(cloudCust);
+        setIsLiveSynced(true);
+      }
+    });
+
+    window.addEventListener('ks_customer_event', handleLocalEvent);
+    window.addEventListener('ks_order_event', handleLocalEvent);
+
+    return () => {
+      unsubscribeCloud();
+      window.removeEventListener('ks_customer_event', handleLocalEvent);
+      window.removeEventListener('ks_order_event', handleLocalEvent);
+    };
+  }, [isOpen, customer?.id, customer?.whatsapp, customer?.name, customer?.stampsCount]);
 
   if (!isOpen) return null;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
-    const found = findCustomerByPhoneOrName(searchQuery);
-    setCustomer(found || null);
-    setHasSearched(true);
-
-    if (found && found.stampsCount >= 10) {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-    }
+    performSearch(searchQuery);
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -44,18 +162,21 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
       id: 'cust-' + Date.now(),
       name: nameInput.trim(),
       whatsapp: phoneInput.trim(),
+      phone: phoneInput.trim(),
       totalVisits: 1,
       lifetimeValue: 26000,
       stampsCount: 1,
       rewardsClaimed: 0,
       lastVisit: new Date().toISOString(),
       createdAt: new Date().toISOString(),
+      segment: 'Pelanggan Baru',
     };
 
     saveCustomer(newCust);
     setCustomer(newCust);
     setIsRegistering(false);
     setHasSearched(true);
+    setIsLiveSynced(true);
     setSearchQuery(phoneInput.trim());
   };
 
@@ -77,9 +198,15 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
               <Award className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-extrabold tracking-tight">
-                Kartu Stempel Loyalitas
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg sm:text-xl font-extrabold tracking-tight">
+                  Kartu Stempel Loyalitas
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                  <Radio className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
+                  Live Sync
+                </span>
+              </div>
               <p className="text-xs text-forest-200">
                 Mie Baso & Aneka Jus Kartika Sari Garut
               </p>
@@ -109,7 +236,7 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
                 </div>
                 <button
                   type="submit"
-                  className="px-5 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-white font-bold text-sm shadow-md transition-all active:scale-95"
+                  className="px-5 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-1.5"
                 >
                   Cari
                 </button>
@@ -118,6 +245,13 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
               {/* Sample list hint */}
               <div className="pt-2 text-[11px] text-slate-500">
                 <span>Coba nomor sampel: </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('08998022630')}
+                  className="font-mono text-forest-800 underline mr-2"
+                >
+                  08998022630 (Fanza)
+                </button>
                 <button
                   type="button"
                   onClick={() => setSearchQuery('081223456789')}
@@ -215,11 +349,19 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
                 <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-white/5 pointer-events-none"></div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-gold-400 text-slate-900 mb-1">
-                      KARTU MEMBER SETIA
-                    </span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-gold-400 text-slate-900">
+                        KARTU MEMBER SETIA
+                      </span>
+                      {isLiveSynced && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                          Real-time
+                        </span>
+                      )}
+                    </div>
                     <h4 className="text-lg font-bold tracking-tight">{customer.name}</h4>
-                    <p className="text-xs text-forest-200 font-mono mt-0.5">{customer.whatsapp}</p>
+                    <p className="text-xs text-forest-200 font-mono mt-0.5">{customer.whatsapp || customer.phone}</p>
                   </div>
                   <div className="text-right">
                     <span className="text-2xl font-black text-gold-400">
@@ -238,6 +380,24 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
                       style={{ width: `${Math.min(100, (customer.stampsCount / 10) * 100)}%` }}
                     ></div>
                   </div>
+                </div>
+
+                {/* Quick refresh bar */}
+                <div className="mt-3 pt-2.5 border-t border-white/10 flex justify-between items-center text-[11px] text-forest-200">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    Tersinkronisasi otomatis dengan Kasir
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => performSearch(searchQuery || customer.whatsapp || customer.name)}
+                    disabled={isSearching}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all disabled:opacity-50"
+                    title="Segarkan stempel sekarang"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isSearching ? 'animate-spin text-gold-400' : ''}`} />
+                    <span>{isSearching ? 'Menyinkronkan...' : 'Segarkan'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -300,6 +460,7 @@ export const StampCardModal: React.FC<StampCardModalProps> = ({ isOpen, onClose 
                   setCustomer(null);
                   setSearchQuery('');
                   setHasSearched(false);
+                  setIsLiveSynced(false);
                 }}
                 className="w-full py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 underline text-center"
               >

@@ -13,6 +13,7 @@ import {
   getSegmentBadge,
   getPromoWhatsAppUrl,
 } from '../services/storage';
+import { fetchCloudCustomers, subscribeToCloudCustomers } from '../services/supabaseCustomers';
 import {
   Users,
   Search,
@@ -65,23 +66,55 @@ export const CustomerCRM: React.FC = () => {
 
   // 1. REAL-TIME SUBSCRIPTION
   useEffect(() => {
-    const unsubscribe = subscribeToCrmChanges(() => {
+    // Initial fetch from cloud
+    fetchCloudCustomers()
+      .then((cloudCusts) => {
+        if (cloudCusts && cloudCusts.length > 0) {
+          setCustomers((prev) => {
+            const map = new Map<string, Customer>();
+            prev.forEach((c) => map.set(c.id, c));
+            cloudCusts.forEach((c) => {
+              const ex = map.get(c.id);
+              if (!ex || (c.stampsCount || 0) >= (ex.stampsCount || 0)) {
+                map.set(c.id, c);
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch(() => {});
+
+    const unsubscribeLocal = subscribeToCrmChanges(() => {
       const latest = getCustomers();
       setCustomers((prev) => {
-        // Check if there are updates
         if (JSON.stringify(prev) !== JSON.stringify(latest)) {
-          const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          setLastSyncTime(`Pukul ${nowStr}`);
-          setRealtimeNotice('⚡ Data CRM berhasil disinkronkan secara real-time!');
-          setTimeout(() => setRealtimeNotice(null), 3500);
           return latest;
         }
         return prev;
       });
     });
 
+    const unsubscribeCloud = subscribeToCloudCustomers((cloudCust) => {
+      setCustomers((prev) => {
+        const index = prev.findIndex((c) => c.id === cloudCust.id || (c.whatsapp && c.whatsapp === cloudCust.whatsapp));
+        const updated = [...prev];
+        if (index >= 0) {
+          updated[index] = cloudCust;
+        } else {
+          updated.unshift(cloudCust);
+        }
+        const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSyncTime(`Pukul ${nowStr}`);
+        setRealtimeNotice('⚡ Data CRM berhasil disinkronkan secara real-time!');
+        setTimeout(() => setRealtimeNotice(null), 3500);
+        return updated;
+      });
+    });
+
     return () => {
-      unsubscribe();
+      unsubscribeLocal();
+      unsubscribeCloud();
     };
   }, []);
 
