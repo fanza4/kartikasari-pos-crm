@@ -1367,12 +1367,38 @@ function addPrdFooter(slide, current, total) {
   );
 }
 
-// Generate the PRD PPTX File
+// Generate and Sanitize the PRD PPTX File
 const outputPath = path.resolve(__dirname, '../PRD_Mie_Baso_Kartika_Sari.pptx');
+const JSZip = require('jszip');
+
 pres
-  .writeFile({ fileName: outputPath })
-  .then(() => {
-    console.log('✅ File presentasi PRD PPTX berhasil dibuat di:', outputPath);
+  .write('nodebuffer')
+  .then(async (buffer) => {
+    // Sanitize OOXML structure to guarantee 100% compatibility with Microsoft PowerPoint
+    const zip = await JSZip.loadAsync(buffer);
+
+    // 1. Clean notesMaster1.xml to prevent PowerPoint repair dialog
+    if (zip.files['ppt/notesMasters/notesMaster1.xml']) {
+      let nm = await zip.files['ppt/notesMasters/notesMaster1.xml'].async('string');
+      const cleanSpTree = '<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree>';
+      nm = nm.replace(/<p:spTree>[\s\S]*?<\/p:spTree>/, cleanSpTree);
+      zip.file('ppt/notesMasters/notesMaster1.xml', nm);
+    }
+
+    // 2. Remove phantom empty directories flagged by PowerPoint
+    const emptyDirs = ['ppt/charts/', 'ppt/charts/_rels/', 'ppt/embeddings/'];
+    for (const dir of emptyDirs) {
+      if (zip.files[dir]) zip.remove(dir);
+    }
+
+    const cleanBuffer = await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+
+    fs.writeFileSync(outputPath, cleanBuffer);
+    console.log('✅ File presentasi PRD PPTX berhasil dibuat dan disanitasi di:', outputPath);
   })
   .catch((err) => {
     console.error('❌ Gagal membuat PRD PPTX:', err);
