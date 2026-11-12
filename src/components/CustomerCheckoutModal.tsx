@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCustomerOrder } from '../context/CustomerOrderContext';
 import { OrderPaymentMethod, OrderType } from '../types';
 import { formatRupiah } from '../services/storage';
@@ -31,11 +31,30 @@ export const CustomerCheckoutModal: React.FC<CustomerCheckoutModalProps> = ({
   const [customerName, setCustomerName] = useState('');
   const [customerWhatsapp, setCustomerWhatsapp] = useState('');
   const [orderType, setOrderType] = useState<OrderType>('dine_in');
-  const [tableNumber, setTableNumber] = useState('');
+  const [tableNumber, setTableNumber] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTable = params.get('table') || params.get('meja');
+      if (urlTable) {
+        return urlTable.toLowerCase().startsWith('meja') ? urlTable : `Meja ${urlTable}`;
+      }
+    }
+    return '';
+  });
   const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>('cash');
   const [orderNotes, setOrderNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTable = params.get('table') || params.get('meja');
+      if (urlTable && !tableNumber) {
+        setTableNumber(urlTable.toLowerCase().startsWith('meja') ? urlTable : `Meja ${urlTable}`);
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
