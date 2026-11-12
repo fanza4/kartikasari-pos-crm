@@ -86,17 +86,32 @@ export const getSegmentBadge = (segment: CustomerSegment) => {
 // --- Storage API ---
 
 // 1. Settings
+export const CURRENT_QRIS_VERSION = '20241011_ID1024349790229';
+
 export const getStoreSettings = (): StoreSettings => {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (data) {
       const parsed = JSON.parse(data);
+
+      // Automatic Migration: If stored QRIS is an old version, old path, or legacy image, force reset to official QRIS
+      let activeQrisImageUrl = DEFAULT_STORE_SETTINGS.qrisImageUrl;
+      if (parsed.qrisVersion === CURRENT_QRIS_VERSION && parsed.qrisImageUrl && parsed.qrisImageUrl.startsWith('data:image')) {
+        activeQrisImageUrl = parsed.qrisImageUrl;
+      } else {
+        // Upgrade legacy settings to official QRIS
+        parsed.qrisImageUrl = DEFAULT_STORE_SETTINGS.qrisImageUrl;
+        parsed.qrisVersion = CURRENT_QRIS_VERSION;
+        try {
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...parsed, qrisImageUrl: activeQrisImageUrl, qrisVersion: CURRENT_QRIS_VERSION }));
+        } catch {}
+      }
+
       return {
         ...DEFAULT_STORE_SETTINGS,
         ...parsed,
-        qrisImageUrl: (parsed.qrisImageUrl && parsed.qrisImageUrl !== '/logo.jpg')
-          ? parsed.qrisImageUrl
-          : DEFAULT_STORE_SETTINGS.qrisImageUrl,
+        qrisImageUrl: activeQrisImageUrl,
+        qrisVersion: CURRENT_QRIS_VERSION,
         mapsDirectUrl: parsed.mapsDirectUrl && parsed.mapsDirectUrl.includes('goo.gl')
           ? parsed.mapsDirectUrl
           : DEFAULT_STORE_SETTINGS.mapsDirectUrl,

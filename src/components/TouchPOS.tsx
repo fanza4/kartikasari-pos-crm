@@ -11,6 +11,7 @@ import {
   resetStoreQrisImage,
   findCustomerByPhoneOrName,
 } from '../services/storage';
+import officialQrisImage from '../assets/qris.jpg';
 import { compressImageFile } from '../utils/imageCompressor';
 import {
   ShoppingBag,
@@ -1099,7 +1100,7 @@ export const TouchPOS: React.FC = () => {
                       {/* QR Display */}
                       <div className="w-52 h-64 mx-auto bg-white p-2.5 rounded-2xl border-2 border-slate-200 shadow-inner flex items-center justify-center relative group">
                         <img
-                          src={storeSettings.qrisImageUrl || '/qris.jpg'}
+                          src={storeSettings.qrisImageUrl || officialQrisImage}
                           alt="QRIS Mie Baso Kartika Sari"
                           className="max-w-full max-h-full object-contain cursor-pointer rounded-xl"
                           onClick={() => setIsQrisPreviewOpen(true)}
@@ -1257,7 +1258,7 @@ export const TouchPOS: React.FC = () => {
             </div>
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center">
               <img
-                src={storeSettings.qrisImageUrl || '/qris.jpg'}
+                src={storeSettings.qrisImageUrl || officialQrisImage}
                 alt="QRIS Toko Full"
                 className="max-w-full max-h-96 object-contain rounded-xl"
               />
@@ -1298,7 +1299,7 @@ export const TouchPOS: React.FC = () => {
 
             <div className="w-52 h-64 mx-auto bg-slate-50 rounded-2xl p-2.5 border-2 border-slate-200 flex items-center justify-center relative">
               <img
-                src={storeSettings.qrisImageUrl || '/qris.jpg'}
+                src={storeSettings.qrisImageUrl || officialQrisImage}
                 alt="QRIS Preview"
                 className="max-w-full max-h-full object-contain rounded-xl"
               />

@@ -54,6 +54,7 @@ export interface StoreSettings {
   mapsEmbedUrl: string;
   mapsDirectUrl: string;
   qrisImageUrl: string;
+  qrisVersion?: string;
   stampTarget: number;
 }
 

@@ -1,4 +1,5 @@
 import { MenuItem, ToppingItem, StoreSettings, Customer } from '../types';
+import officialQrisImage from '../assets/qris.jpg';
 
 export const TOPPINGS: ToppingItem[] = [
   { id: 'top-babat', name: 'Babat', price: 5000 },
@@ -399,7 +400,8 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   operationalHours: 'Setiap Hari: 09:30 - 21:00 WIB',
   mapsEmbedUrl: 'https://maps.google.com/maps?q=Mie+Baso+Kartika+Sari+Garut&t=&z=17&ie=UTF8&iwloc=&output=embed',
   mapsDirectUrl: 'https://maps.app.goo.gl/vFAbar6CYjoBZ9wNA',
-  qrisImageUrl: '/qris.jpg',
+  qrisImageUrl: officialQrisImage,
+  qrisVersion: '20241011_ID1024349790229',
   stampTarget: 10,
 };
 

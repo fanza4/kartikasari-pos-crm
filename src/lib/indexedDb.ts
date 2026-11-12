@@ -83,6 +83,10 @@ export const initIndexedDB = async (): Promise<void> => {
       const currentSettings = await db.get('settings', 'store_settings');
       if (!currentSettings) {
         await db.put('settings', { key: 'store_settings', value: DEFAULT_STORE_SETTINGS });
+      } else if (currentSettings.value && currentSettings.value.qrisVersion !== DEFAULT_STORE_SETTINGS.qrisVersion) {
+        currentSettings.value.qrisImageUrl = DEFAULT_STORE_SETTINGS.qrisImageUrl;
+        currentSettings.value.qrisVersion = DEFAULT_STORE_SETTINGS.qrisVersion;
+        await db.put('settings', currentSettings);
       }
       return;
     }

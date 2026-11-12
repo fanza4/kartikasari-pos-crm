@@ -7,6 +7,7 @@ import {
   getStoreSettings,
   getOrderReceiptWhatsAppUrl,
 } from '../services/storage';
+import officialQrisImage from '../assets/qris.jpg';
 import {
   X,
   Clock,
@@ -325,7 +326,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                     {settings.qrisImageUrl || true ? (
                       <div className="w-56 h-72 mx-auto bg-white rounded-xl p-1.5 flex flex-col items-center justify-center border border-slate-200 relative group overflow-hidden shadow-inner">
                         <img
-                          src={settings.qrisImageUrl || '/qris.jpg'}
+                          src={settings.qrisImageUrl || officialQrisImage}
                           alt="QRIS Resmi Mie Bakso Kartika Sari"
                           className="w-full h-full object-contain rounded-lg"
                         />
